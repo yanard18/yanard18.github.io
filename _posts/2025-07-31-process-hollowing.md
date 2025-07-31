@@ -181,7 +181,7 @@ If it's your first time hearing about registers, this part of the code may look 
 
 And we will talk about `Rip` later. 
 
-> [!CAUTION] I found that `Rdx` register holds the `PEB` struct for us, but I seen that many examples used different registers. I.e., for 32-bit systems it's the `Ebx` register with `0x08` offset (8 bytes) that points the **base address**. So do your research to find which register you are working with.
+> I found that `Rdx` register holds the `PEB` struct for us, but I seen that many examples used different registers. I.e., for 32-bit systems it's the `Ebx` register with `0x08` offset (8 bytes) that points the **base address**. So do your research to find which register you are working with.
 
 
 
