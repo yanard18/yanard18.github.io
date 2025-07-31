@@ -1,8 +1,9 @@
 ---
-title: Process Hollowing Deep Dive
-date: 2025-07-31
-categories: malware
+layout: post
+title: "Process Hollowing"
+date: 2025-07-31 12:00:00 +0300
 ---
+
 
 # Welcome
 
