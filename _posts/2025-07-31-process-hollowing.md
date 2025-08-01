@@ -154,7 +154,7 @@ CloseHandle(hMaliciousFile); // no longer we need this handle
 
 Again, what `ReadFile` method does is reading a file from a open handle, and write it into the given address space.
 
-*Add an image or gif shows written data into the memory* 
+![ReadProcessMemory](/assets/images/ReadProcessMemory.gif)
 
 ### Carving Out the Victim Process
 
@@ -168,11 +168,11 @@ First of all we need to find the **base address** of the victim process. This ca
 Let's remember where the machine registers are stored. The **Thread Context** component of the thread!
 
 ```cpp
-	ctx.ContextFlags = CONTEXT_FULL;
-	GetThreadContext(
-		victim_pi->hThread,
-		&ctx
-	);
+ctx.ContextFlags = CONTEXT_FULL;
+GetThreadContext(
+    victim_pi->hThread,
+    &ctx
+);
 ```
 
 `ContextFlags` determines which registers we want to get. for 32-bit systems `INTEGER` flag should be enough but in a 64-bit system we will need `Rip` and `Rdx` registers so we will use `CONTEXT_FULL` flag.
