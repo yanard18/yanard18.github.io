@@ -265,7 +265,7 @@ WriteProcessMemory(
 );
 ```
 
-![Writing process memory at base address](https://i.imgur.com/PK8LINT.gif)
+![Writing process memory at base address](https://imgur.com/PK8LINT.gif)
 
 PE file has multiple sections, so it's convinient to use a for loop and write each section.
 
