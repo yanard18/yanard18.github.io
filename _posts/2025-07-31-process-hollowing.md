@@ -5,33 +5,45 @@ title:  "Process Hollowing: Deep Dive and x64-bit"
 
 
 ## Introduction
-This writing will focus on what is process hollowing and how it works with example code. One of the motivations I write this post, I couldn't find a good resource focuses on 64-bit systems, and the caviats that causes process hollowing to fail. I struggled a lot, and hoping that this writing will help you to protect your sanity.
 
-## What is Process Hollowing
+In this post, we’ll explore the inner workings of process hollowing on 64‑bit Windows, complete with a hands‑on C++ example. Many resources focus on 32‑bit or gloss over the 64‑bit pitfalls—this guide will address those gaps and help you avoid the common traps that can drive you crazy.
 
-Process Hollowing is a technique used by very very bad people to hide their malicious code, inside a legitimate looking process. I.e., some malware inject himself inside `svchost.exe` to look like a legitimate process.
+### What is Process Hollowing?
 
-// talk about how we process hollow as high level overview
+Process hollowing is a stealthy technique in which an attacker:
 
-## Process
+1. Creates a legitimate process in a suspended state (the “victim”).
+2. Unmaps (hollows out/carve out) the victim’s memory image.
+3. Injects a malicious binary in its place.
+4. Resumes execution so the host appears benign while running harmful code.
 
-A process represents the executable program in the Windows system. When you run your favourite game (cs2.exe) it will start a process in your system that you can see from the `task manager`.
+Attackers often use this to disguise malware inside svchost.exe, evading basic process listings and cursory antivirus checks.
 
-Process have many important components:
+## First... Fundamentals!
+
+Topics we are about to cover requires good understanding of the windows internals. I will try to cover the specific components that we will need for this technique however I highly recommend you to spend some time understanding the fundamentals.
+
+### Anatomy of a Windows Process
+
+A process is the fundamental execution container in Windows, combining code, data, and system metadata.
+
+It represents the executable program in the Windows system. When you run your favourite game (cs2.exe) it will start a process in your system that you can see from the `task manager`.
+
+Key components include:
 
 |||
 |-|-|
 |**Process Component**|**Role**|
-|Private Virtual Address Space|Memory address that allocated by the process.|
+|Private Virtual Address Space|The span of addresses the process can use in RAM.|
 |Open Handles|Like a real life handle, let us work with the process in code.|
 |Security Context|User access, privileges and security information of the process.|
 |Executable Program|Where the code and data stored in the virtual address space.|
 |Process ID|Unqiue number that represenets your process (PID).|
 |Threads|Isolated executable sections of the process.|
 
-## Threads
+### Threads: Execution Part of the Process
 
-Threads runs under the context of a process. The main idea, it can separate an execution from other executions, so if one of them fails whole program won't crash, only the related thread will crush.
+Threads run within a process’s context. The main idea, it can separate an execution from other executions, so if one of them fails whole program won't crash, only the related thread will crush.
 
 A good example of this is the web browsers. Let's assume that we run firefox. A new firefox.exe process will be instantiated for this. For every tab we open in firefox, a new thread will be created so if one of them fails, firefox won't crash only the problematic page will be closed because it has its own thread.
 
@@ -50,12 +62,49 @@ Threads also have many components:
 |Thread ID|Uniquie number associated with the tread (TID)|
 
 
-## Understanding PE
+### Understanding the PE File Format
 
-It's very useful to fully understand the PE file structure in order to understand this writing better. I'm planning to write a dedicated blog post about it, however for this post we will learn what we need.
+PE file format stands for Portable Executable. I.e., `.exe` files in your system are PE files.
 
----
-Hey Internet, this is the first post of my upcoming one helluva great blog posts. Why am I doing this posts? I want to learn hard concepts, and teaching is one of the best ways of learnin
+Since we are trying to hollow a PE file and put another PE inside of it, as you guess we need to understand how PE files works.
+
+It's beyond of this writing, but I want to give brief explanations about the PE files so you won't get lost on the injection part.
+
+PE files contains information about how the code and data should be loaded into the address space. It consist of headers and the sections.
+
+Headers contains information about how OS should should load and execute its content. We have `DOS Header`, `DOS Stub` and the `NT Headers`.
+
+"Sections" contains the actual content of the executable. Here are the sections for a PE file:
+
+| Name     | Purpose                                    |
+| -------- | ------------------------------------------ |
+| `.text`  | Executable code (CPU instructions)         |
+| `.data`  | Initialized global/static variables        |
+| `.rdata` | Read-only data (e.g., strings, imports)    |
+| `.bss`   | Uninitialized data (merged with `.data`)   |
+| `.reloc` | Relocation table (used if ASLR is enabled) |
+| `.rsrc`  | Resources (icons, dialogs, manifests)      |
+
+
+We can also check this table from [0xrick's blog writing](https://0xrick.github.io/win-internals/pe2/) to better visualize the PE layout. It’s an excellent reference—you’ll learn a ton by studying 0xRick’s PE anatomy write-up.
+
+<img src="https://0xrick.github.io/images/wininternals/pe2/1.png" alt="PE file structure" width=360>
+
+Also a good tip that PE files starts with MZ headers, so when we look the memory, we should see MZ value at the base address.
+
+### Virtual Address Space
+
+Each process in Windows has its own Virtual Address Space (VAS) — an isolated 4GB (in 32-bit) or 128TB (in 64-bit) memory map. This space is split into user and kernel space.
+
+The OS maps PE file sections into this virtual space when the binary is loaded. What this means: `.text`, `.data`, and other sections don’t run directly from disk — instead, they are loaded into memory, and their RVA (Relative Virtual Address) becomes meaningful inside this space.
+
+Enough of very technical explanation... Think of it like this: We have a PE file sitting on the disk. When we execute it, Windows loads it into RAM, mapping it into the process's **virtual address space**.
+
+That’s the key point — the file doesn’t run directly from disk. It needs to live in memory to work, and that memory layout is what we care about when dealing with things like code injection, hollowing, or relocations.
+
+Well, imagine Windows just loaded each program directly into RAM. What happens if one process accidentally (or maliciously) reads or overwrites memory from another? That would be a disaster.
+
+To avoid this, Windows uses a memory manager that gives each process its own isolated address space — like its own "illusion" of full memory. This illusion is the virtual address space. The OS keeps track of these virtual addresses and maps them to real physical RAM behind the scenes.
 
 ## Process Hollowing
 
@@ -320,18 +369,3 @@ Then simply we will resume our thread, and cleanup the handles and the allocated
 ```
 
 Cross your fingers, if we did everything correct, now we will see our malicious process will work inside its host.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
