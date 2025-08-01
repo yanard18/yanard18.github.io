@@ -16,10 +16,10 @@ timezone:
 
 title: 0xffMekaku # the main title
 
-tagline: A blog about infosec
+tagline: A blog about my cybersecurity and game design studies
 
 description: >- # used by seo meta and the atom feed
-  A minimal, responsive and feature-rich Jekyll theme for technical writing.
+  I love learning... Teaching helps me learning. As my Sifu says, learn the path then be the path.
 
 # Fill in the protocol & hostname for your site.
 # E.g. 'https://username.github.io', note that it does not end with a '/'.
@@ -29,17 +29,17 @@ github:
   username: yanard18 # change to your GitHub username
 
 twitter:
-  username: twitter_username # change to your Twitter username
+  username: DenizYanar_Dev # change to your Twitter username
 
 social:
   # Change to your full name.
   # It will be displayed as the default author of the posts and the copyright owner in the Footer
   name: Deniz Yanard
-  email: example@domain.com # change to your email address
+  email: yanard18@gmail.com # change to your email address
   links:
     # The first element serves as the copyright owner's link
-    - https://twitter.com/username # change to your Twitter homepage
-    - https://github.com/username # change to your GitHub homepage
+    - https://x.com/DenizYanar_Dev # change to your Twitter homepage
+    - https://github.com/yanard18 # change to your GitHub homepage
     # Uncomment below to add more social links
     # - https://www.facebook.com/username
     # - https://www.linkedin.com/in/username
@@ -98,7 +98,7 @@ theme_mode: # [light | dark]
 cdn:
 
 # the avatar on sidebar, support local or CORS resources
-avatar:
+avatar: /assets/img/avatar.jpg
 
 # The URL of the site-wide social preview image used in SEO `og:image` meta tag.
 # It can be overridden by a customized `page.image` in front matter.
