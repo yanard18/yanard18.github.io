@@ -134,8 +134,6 @@ PVOID pMaliciousImage = VirtualAlloc(
 );
 ```
 
-*Add an image shows allocated space in HxD*
-
 Then we can write our malicious image inside the allocated memory space.
 
 ```cpp
@@ -183,8 +181,6 @@ And we will talk about `Rip` later.
 
 > I found that `Rdx` register holds the `PEB` struct for us, but I seen that many examples used different registers. I.e., for 32-bit systems it's the `Ebx` register with `0x08` offset (8 bytes) that points the **base address**. So do your research to find which register you are working with.
 
-
-
 ```cpp
 PVOID pVictimImageBaseAddress;
 ReadProcessMemory(
@@ -223,6 +219,10 @@ DWORD dwResult = NtUnmapViewOfSection(
 );
 ```
 
+We can use HxD tool analyze the memory, and look for the base address of the victim process we found (pVictimImageBaseAddress).
+
+![NtUnmapViewOfSectionMemory](https://imgur.com/BI9FfDD.gif)
+
 > TODO: Show how unmap trims the data from the memory with HxD
 
 ### Writing Malicious Image
@@ -253,8 +253,6 @@ PVOID pHollowAddress = VirtualAllocEx(
 );
 ```
 
-TODO: Show with HxD
-
 We will start with writing the PE headers into the memory, then we will look inside of those headers to learn where we will write the remaining sections of it.
 
 ```cpp
@@ -266,6 +264,8 @@ WriteProcessMemory(
     NULL
 );
 ```
+
+![Writing process memory at base address](https://i.imgur.com/PK8LINT.gif)
 
 PE file has multiple sections, so it's convinient to use a for loop and write each section.
 
