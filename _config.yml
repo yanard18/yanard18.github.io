@@ -9,17 +9,17 @@ theme: jekyll-theme-chirpy
 lang: en
 
 # Change to your timezone › https://kevinnovak.github.io/Time-Zone-Picker
-timezone:
+timezone: Europe/Istanbul
 
 # jekyll-seo-tag settings › https://github.com/jekyll/jekyll-seo-tag/blob/master/docs/usage.md
 # ↓ --------------------------
 
-title: 0xffMekaku # the main title
+title: 0xffMekaku's Cybersecurity Blog # the main title
 
-tagline: A blog about my cybersecurity and game design studies
+tagline: Cybersecurity | Learning, Teaching, and Personal Projects
 
 description: >- # used by seo meta and the atom feed
-  I love learning... Teaching helps me learning. As my Sifu says, learn the path then be the path.
+  A blog sharing insights on cybersecurity, game design, and personal learning journeys. I love learning... Teaching helps me learning. As my Sifu says, learn the path then be the path.
 
 # Fill in the protocol & hostname for your site.
 # E.g. 'https://username.github.io', note that it does not end with a '/'.
@@ -34,7 +34,7 @@ twitter:
 social:
   # Change to your full name.
   # It will be displayed as the default author of the posts and the copyright owner in the Footer
-  name: Deniz Yanard
+  name: Deniz Yanar
   email: yanard18@gmail.com # change to your email address
   links:
     # The first element serves as the copyright owner's link
