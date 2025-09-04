@@ -207,9 +207,6 @@ Again, what `ReadFile` method does is reading a file from a open handle, and wri
 
 Time for the surgery! We will unmap the victim process's address space.
 
-> TODO: explain why we unmap and just not overwrite.
-> TODO: explain the base address
-
 First of all we need to find the **base address** of the victim process. This can be tricky, because we need to look the machine registers in order to find it.
 
 Let's remember where the machine registers are stored. The **Thread Context** component of the thread!
@@ -244,8 +241,6 @@ ReadProcessMemory(
 
 then `ReadProcessMemory` will read the data (memory address in our case) and store it inside `pVictimImageBaseAddres` variable.
 
-> TODO: explain better maybe?
-
 Why 0x10 (16 byte)? Check the `PEB` struct: https://rinseandrepeatanalysis.blogspot.com/p/peb-structure.html
 
 The **base address** is where we want to start to carve out. Since we know it, we can start to unmap operation.
@@ -271,8 +266,6 @@ DWORD dwResult = NtUnmapViewOfSection(
 We can use HxD tool analyze the memory, and look for the base address of the victim process we found (pVictimImageBaseAddress).
 
 ![NtUnmapViewOfSectionMemory](https://imgur.com/BI9FfDD.gif)
-
-> TODO: Show how unmap trims the data from the memory with HxD
 
 ### Writing Malicious Image
 
@@ -332,8 +325,6 @@ for (int i = 0; i < pNTHeaders->FileHeader.NumberOfSections; i++) {
 	);
 }
 ```
-> TODO: this part look messy, maybe clarify this code
-
 ### Resuming the Thread
 
 Check your process with printing errors out, if no error congrats you successfully made your surgery, but now we need to stitch the open process and resume the `SUSPENDED` thread.
