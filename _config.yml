@@ -170,12 +170,6 @@ collections:
   tabs:
     output: true
     sort_by: order
-  cybersec:
-    output: true
-  harvested:
-    output: true
-
-
 
 defaults:
   - scope:
