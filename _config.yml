@@ -95,7 +95,7 @@ theme_mode: # [light | dark]
 # will be added to all media resources (site avatar, posts' images, audio and video files) paths starting with '/'
 #
 # e.g. 'https://cdn.com'
-cdn: s3://mekaru-blog-public-019949df-237e-7d6d-9503-4bb35a1727dc/media/
+cdn: https://mekaru-blog-public-019949df-237e-7d6d-9503-4bb35a1727dc.s3.eu-central-1.amazonaws.com/media/
 
 # the avatar on sidebar, support local or CORS resources
 avatar: /assets/img/avatar.jpg
