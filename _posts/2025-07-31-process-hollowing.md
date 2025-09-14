@@ -1,6 +1,8 @@
 ---
 layout: post
 title:  "Process Hollowing: Deep Dive and x64-bit"
+caregories: [cyber-security]
+tags: [malware]
 ---
 
 
