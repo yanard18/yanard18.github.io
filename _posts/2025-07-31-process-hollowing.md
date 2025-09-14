@@ -3,6 +3,7 @@ layout: post
 title:  "Process Hollowing: Deep Dive and x64-bit"
 categories: [cyber-security]
 tags: [malware]
+image: images/hxd-process-hollow-x64.png
 ---
 
 
