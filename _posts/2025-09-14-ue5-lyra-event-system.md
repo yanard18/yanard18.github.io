@@ -10,23 +10,15 @@ tags: [unrealengine, c++]
 
 Unreal Engine has one of the most elegant architecture designs I seen. Probably I will look more inside Unreal Engine and write about it in the future. In this post, we will turn our microscopes towards to Unreal Engine Lyra's Game Message System. It's more advanced way of game events or observer pattern. However, rather than trying to understand how it works, this writing will try to understand how the developers came up with this design. I believe such understanding is more important than the system itself.
 
-### What is Unreal Engine Lyra Starter Game Project
+### What is the Lyra Starter Game
 
-Lyra is a simple gameplay project by Unreal Engine itself that aims to show good practicies for game development. Lyra is a multiplayer third person shooter, it works very well and robust and contains very smartly designed systems such as `GAS` and `Gameplay Message System` and more.
+Lyra is Epic's reference gameplay project that demonstrates modern best practices for Unreal Engine development. It's a multiplayer third-person shooter that includes well-architected systems such as **GAS** and the **Gameplay Message Subsystem**. Studying Lyra is useful because it shows how to structure a real game project for robustness and reusability.
 
-### Understanding Gameplay Message System
+### What is an Event System and Why We Need
 
-Either be an game developer or software engineer, observer pattern is a common design pattern we all know. Well if you don't know what's it check it out on YouTube really quick. In game development it's also often seen as game events.
+## Briefly Why We Need Event System
 
-- Unreal Engine decided to name it as `Message System` or `Gameplay Message Subsystem`.
-- Comparing to classic observer pattern, It uses Tags as event channels. We will also talk about what are Tags.
-- It decouples the systems. Player health UI, score UI, respawn system shouldn't know about the player. With the message subsytem they do not care about the player but just the player events.
-- For example death of the player may trigger an event over `Game.Player.Death` channel, and all UIs and systems that listens this event will react to player's death.
-- System is very generic and Lyra use it for all kinds of communication between its systems.
-
-## Why we Need Event System in the First Place
-
-Starting with two simple systems of `Player` and the `Respawn Manager`. At the moment there are nothing special. Whenever a damage taken `Player` code check if it's below zero and if yes it directly communicate with `Respawn Manager` and thell that we want to respawn a new player.
+Imagine two systems: `Player` and `RespawnManager`. In a naive approach the Player directly calls the respawn logic when its health drops to zero:
 
 ```cpp
 void Player::OnHealthChanged(AActor* InstigatorActor, UHarvestAttributeComponent* OwningComp,
@@ -47,42 +39,42 @@ void Player::OnHealthChanged(AActor* InstigatorActor, UHarvestAttributeComponent
 }
 ```
 
+This works, but it's tightly coupled: the Player needs to know about the GameMode. If you swap to a different game mode (e.g., ArenaGameMode) you must change the Player code.
+
 By the way, this is an real life scenario that I faced when I was working on my survival game project **Tarnish**, so if you love competitive games and the survival genree give it some love!
 
-As seen it's very basic system `OnHealthChanged` method inside of the `Player` class. The problem about it, when I change the `SurvivalGameMode` to another game mode (i.e., "ArenaGameMode") I have to re-write the same logic that handles death of the player. So I can call the same exact method: `ArenaGameMode->KillPlayer()` Also it requires change on the `Player` code itself.
-
-With the help of game events, `Player` will only send a game event as `Game.Player.Die` and any game mode that listens this event will trigger the respawn mechanism. So new code looks like:
+With a message/event system the Player simply broadcasts a `Game.Player.Die` event and any system that listens can react. 
 
 ```cpp
 void Player::OnHealthChanged(AActor* InstigatorActor, UHarvestAttributeComponent* OwningComp,
                                         float NewHealth,
                                         float Delta)
 {
-	// Whenever a player die
-	if (NewHealth <= 0 && HasAuthority())
-	{
-		AHarvestGameMode* SurvivalGameMode = GetWorld()->GetAuthGameMode<AHarvestGameMode>();
-		AController* CharacterController = GetController();
-		if (SurvivalGameMode && CharacterController)
-		{
+    // Broadcast player death
+    if (NewHealth <= 0 && HasAuthority())
+    {
+        AController* CharacterController = GetController();
+        if (CharacterController)
+        {
+            FHarvestMessageVerb Message(FGameplayTag::RequestGameplayTag(FName("Game.Player.Die")), InstigatorActor, this);
 
-			FHarvestMessageVerb Message(FGameplayTag::RequestGameplayTag(FName("Game.Player.Die")) ,InstigatorActor, this);
+            UGameplayMessageSubsystem& MessageSystem = UGameplayMessageSubsystem::Get(GetWorld());
 
-			UGameplayMessageSubsystem& MessageSystem = UGameplayMessageSubsystem::Get(GetWorld());
-
-			MessageSystem.BroadcastMessage(Message.Verb, Message);
-		}
-	}
+            MessageSystem.BroadcastMessage(Message.Verb, Message);
+        }
+    }
 }
 ```
 
-No longer `Player` communicates with the `SurvivalGameMode` just send the event and take care of its own business. 
+Now the Player only handles its own state and the respawn logic is handled by whoever listens to the Game.Player.Die event.
 
 ## Building an Event System from Scratch
 
-We will start simple, then we will ask questions. How the system could be better? Then gradually improve the code. I will also start with Unity C# then transition to Unreal C++ when we start to review the **Game Message Subsystem**. Here is the classic observer pattern:
+We'll start with a classic Observer example (Unity/C#) and use it to highlight common problems and improvements.
 
 ![observer-pattern-diagram-wikipedia](images/observer-pattern-uml-diagram-wikipedia.png){: w="720"}
+
+Player.cs:
 
 ```c#
 // IObserver.cs
@@ -127,8 +119,9 @@ public class Player : MonoBehaviour, ISubject
 }
 ```
 
+RespawnManagerObserver.cs:
+
 ```C#
-// RespawnManagerObserver.cs
 using UnityEngine;
 
 public class RespawnManagerObserver : MonoBehaviour, IObserver<PlayerDiedEvent>
@@ -158,27 +151,17 @@ public class RespawnManagerObserver : MonoBehaviour, IObserver<PlayerDiedEvent>
 
 Then what are the problems with this implementation?
 
-- Event system do not pass any paramateres through `Notify()`. Example, who killed the player? Wouldn't it be greatt o pass the **Instigator** game object who is resonsible by death event? 
-- Player must be inherited by the `ISubject` interface and Respawn Manager by the `IObserver`. Defining `OnNotify()` and `Notify()` methods for each event again is repitition.
-- Player needs to know how to notify and this is not the responsibility of the player. 
-- Player and respawn manager events required to be wired. There are no global event bus so actually, respawn manager needs to find the player and register itself into player's `ISubject`. 
+- No parameters in Notify() — who killed the player? Where did it happen?
+- Each subject/observer pair needs its own interface; this becomes repetitive.
+- Subjects must expose registration methods and observers must register themselves — this wiring causes coupling.
+- The subject (Player) is responsible for notification logic, which can violate SRP depending on your view.
 
-Considering what is common and what is differ from the others also could guide us to design a better system.
-
-Common:
-
-- Behaviour of an event. Something happens, we broadcast what happens then sombe observers catches. This is same for all event system. 
-- implementations of the `Notify()` and `OnNotify()` methods are always the same. There are no need to define them again for each new event.
-
-Differ:
-
-- Passed paramaters may differ for each kind of event. I.e., `Game.Player.Die` event passes the instigator.
-- Event itself is different. Current implementation requires wiring subject and the observer, this way events are differing from each others.
+I think the biggest problem here is the first one. Current implementation do not let us the parameters so firstly I will focus on solving that.
 
 
-### Passing Paramterers
+### Parameterized Generic Observer
 
-Most obvious problem is that previous example do not pass any parameters at all. Obviously it's possible to write `ISubject` interfaces for each specific cases.
+Using generics (`IObserver<T>`, `ISubject<T>`) we can solves parameter passing.
 
 ```c#
 public interface IPlayerDeathSubject
@@ -188,8 +171,6 @@ public interface IPlayerDeathSubject
     void Notify(GameObject instigator);
 }
 ```
-
-Great work! Now we need to implement a specific interface for each event. That's a big NO!
 
 ```c#
 // IObserver.cs
@@ -334,13 +315,15 @@ public abstract class EventChannel<T> : ScriptableObject
 public class PlayerDeathEvent : EventChannel<PlayerDeathPayload> {}
 ```
 
-That's looking really solid, and I designed my events like that for many projects. However now I'm using Lyra's event system and using its interface feels much smoother comparing to this event system. I ask myself why is that, what's really more appealing on the Lyra's sytem? 
+## Design of the Lyra's Game Message Subsystem
 
-At this point, we manage to  write a generic scriptable object however for each kind of event payload (i.e., `PlayerDeathPayload`), it's required to code a new struct.
+At this point we build fairly good event system. Now we will transition to analyzing actual code of the **Lyra's Game Message Subystem** and see what we can improve in our design.
 
-On the other hand, Lyra says that, nah I will just write a massive payload that works under many circumstances. And it works perfectly.
+### Monster Methods and Data
 
-With that said, let's modify our `PlayerDeathPayload` as:
+Our last implementation looked solid — using ScriptableObjects or an event bus is a reasonable pattern for many projects. But one annoyance remained: for every new event we still needed a new payload type (e.g., PlayerDeathPayload). That leads to a lot of tiny structs and repitition.
+
+Lyra takes a different approach: instead of many tiny payloads, it uses a single, flexible message struct that can carry different kinds of information. In other words — a “monster” payload that works under many circumstances.
 
 ```c#
 [System.Serializable]
@@ -350,27 +333,91 @@ public class EventVerbPayload
     public GameObject Target;
 	public String[] Tags;
 	public float Magnitude = 1.0f; 
+
+	// This not look like a monster but make the job done :)
 }
 ```
 
 What we do here, generalizing the event payload. Looks simple but this setup we can handle various game events. Yes we lost the data of where the player death, but still we can use **Target** GameObject's position data to find player's position.
 
-Philosophy learned here, **sometimes monster methods and data with many configurations better than a minimal one.**
+> Philosophy learned here, **some cases monster methods and data with many configurations better than a minimal one.**
 
-## Design of the Lyra's Game Message Subsystem
+Lyra's actual message struct is the same idea — generic, flexible, and rich enough for most gameplay messaging:
 
-At this point we build fairly good event system. Now we will transition to analyzing actual code of the **Lyra's Game Message Subystem** and see what we can improve in our design.
+```cpp
+// Represents a generic message of the form Instigator Verb Target (in Context, with Magnitude)
+USTRUCT(BlueprintType)
+struct FLyraVerbMessage
+{
+	GENERATED_BODY()
 
-### Event Manager - Game Subsystem
+	UPROPERTY(BlueprintReadWrite, Category=Gameplay)
+	FGameplayTag Verb;
 
-We prefered to use scriptable objects for each event. But Unreal Engine prefers to use managers well in Unreal Engine ecosystem they called subsystems. All events are registered into one persistent manager.
+	UPROPERTY(BlueprintReadWrite, Category=Gameplay)
+	TObjectPtr<UObject> Instigator = nullptr;
 
-Managers generally breaks SOLID principles, due to their nature of having multiple responsiblities. Even our system didn't use a manager, so our code was better? Well when I work with Unreal Engine I felt that their design works smoother. So I want to understand what are the reasons they prefer to go with managers and break the rules. 
+	UPROPERTY(BlueprintReadWrite, Category=Gameplay)
+	TObjectPtr<UObject> Target = nullptr;
 
-1. 
+	UPROPERTY(BlueprintReadWrite, Category=Gameplay)
+	FGameplayTagContainer InstigatorTags;
 
+	UPROPERTY(BlueprintReadWrite, Category=Gameplay)
+	FGameplayTagContainer TargetTags;
 
+	UPROPERTY(BlueprintReadWrite, Category=Gameplay)
+	FGameplayTagContainer ContextTags;
 
+	UPROPERTY(BlueprintReadWrite, Category=Gameplay)
+	double Magnitude = 1.0;
 
+	// Returns a debug string representation of this message
+	LYRAGAME_API FString ToString() const;
+};
+```
 
+### Why a subsystem (manager)?
 
+Now that we have a working event model, let's examine the subsystem-level choices Lyra makes and why they matter.
+
+Lyra centralizes messaging in a persistent manager — a `UGameplayMessageSubsystem`. Managers get a bad rap because they can become god-objects, but they make sense here because:
+
+- Clear responsibility: The subsystem's single job is message routing and listener management. It doesn't mix in AI, physics, or UI logic.
+
+- World lifecycle alignment: The subsystem lives at the right scope (game/world), so listeners and broadcasts behave predictably across map loads and game modes.
+
+- Performance & memory: A single routing point can be optimized internally (caching listeners, batching, etc.) in ways ad-hoc wiring can't.
+
+> Philoshpy here, manager classes fits very naturally for some problems, and using them actually nice. But each manager must have clear lifecycle and only has single responsibility.
+
+### Ergonomics: handles, tags and utilities
+
+Lyra invests in developer ergonomics. A couple of conveniences stand out:
+
+**Listener handles**: When you register a listener you get a handle back. Use it to unregister cleanly later — much nicer than juggling raw delegates or pointers.
+
+```cpp
+PlayerDeathMessageListenerHandle = UGameplayMessageSubsystem::Get(GetWorld()).RegisterListener<FHarvestMessageVerb>(...)
+```
+**Tag-based channels**: Instead of hardcoding different event types, Lyra uses FGameplayTag to identify message “verbs” or channels (e.g., Game.Player.Die). Tags let listeners filter by semantic meaning, not by concrete types.
+
+```cpp
+	// Send a standardized verb message that other systems can observe
+		{
+			FLyraVerbMessage Message;
+			Message.Verb = TAG_Lyra_Elimination_Message; // Tag data (Game.Player.Die)
+
+			<...SNIP...>
+			
+			UGameplayMessageSubsystem& MessageSystem = UGameplayMessageSubsystem::Get(GetWorld());
+
+			MessageSystem.BroadcastMessage(Message.Verb, Message);
+		}
+```
+
+> Philosophy: Add utilities to acquire great interfaces.
+
+## Closing
+
+Lyra’s Gameplay Message Subsystem is a pragmatic mix of realistic engineering trade-offs: centralized routing for clarity and lifecycle control, expressive messages to reduce boilerplate, and small UX improvements to make the system pleasant to use. For my own project (Tarnish), I’ve already found this pattern helpful — it allowed the player code to remain focused while letting game-mode variations react differently to the same events.
