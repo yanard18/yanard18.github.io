@@ -19,6 +19,8 @@ shop and money system, that we can buy merchandises or extra ram to our cubicles
 expensive, so technically it's impossible to buy, technically... You can see why it's a perfect
 thropy for a security enthusiast.
 
+![Shop](images/42lpe_shop.png){: w="720"}
+
 ## 0day
 
 Everything started with, my fellow friend sent me a screenshot of a folder, that whatever you put in
@@ -63,7 +65,7 @@ Change: 2025-03-20 09:34:57.735457955 +0300
 In order to perform local privilege escalation, analysing the `strace` output of the binary was
 sufficiant, so I will only focus on that part.
 
-1. Capturing the Initial State
+**1. Capturing the Initial State**
 
 The very first line of the trace output is often overlooked, but here, it held the key to the entire
 exploit.
@@ -76,7 +78,7 @@ This is the initial execution of our binary. The most important detail is the `/
 appended by strace. This confirms that when the SUID wrapper launched, it inherited 58 environment
 variables directly from my unprivileged user profile. Keep that number in mind.
 
-2. Discovering the Wrapper
+**2. Discovering the Wrapper**
 
 Right after the initial memory mapping and library loading, the trace revealed a second, distinct
 execve call. That proved `/usr/bin/pkgtool` is not the actual application, but a wrapper.
@@ -97,7 +99,7 @@ unsanitized to the new process.
 
 Immediately after the second execve call, the process began searching the file system for specific libraries.
 
-3. Identifying the Technology
+**3. Identifying the Technology**
 
 Immediately after the second execve call, the process began searching the file system for specific
 libraries.
@@ -111,7 +113,7 @@ The readlink call clearly shows that the hidden file (/opt/pkgtool/pkgtool) is a
 3.10 script. Because we already established that the wrapper passes our environment variables down
 to this process, we now knew we were dealing with a Python environment injection vulnerability.
 
-4. Discovering the Exploit
+**4. Discovering the Exploit**
 
 As Python booted up, the trace showed the interpreter aggressively searching for configuration files
 and standard modules in its default paths.
@@ -126,7 +128,7 @@ control the environment (specifically the PYTHONPATH variable), I realized we co
 load a malicious `sitecustomize.py` file from a directory we control (like /tmp) before it ever
 reaches the system's default /usr/lib/python3.10/ directory.
 
-5. The SUID Privilege Drop (Why the Trace Crashed)
+**5. The SUID Privilege Drop (Why the Trace Crashed)**
 
 At the very end of the trace, the process suddenly failed with a permissions error.
 
@@ -151,7 +153,7 @@ With the strace analysis demystifying the binary's behavior, performing the actu
 remarkably straightforward process. The hard work was in the enumeration and system-call analysis;
 the exploitation phase just requires putting those pieces together.
 
-```bash file:poc.sh
+```bash
 cat << 'EOF' > /tmp/sitecustomize.py
 import os
 os.setresuid(0, 0, 0)
@@ -173,7 +175,7 @@ Because the C wrapper blindly passed our environment variables to the inner scri
 executed with the wrapper's inherited root permissions. Running this script resulted in an immediate
 drop into an interactive root shell.
 
-## We are root now what? Don't Panic!
+## We are root... now what? Don't Panic!
 
 I know that was prety straightworfard but it is always an amazing feeling to see `#` on your
 terminal. To buy towel, we need to find a way to give us 42.000 credits. At this point we could
@@ -182,9 +184,13 @@ privileged devices. However main challange was performing those in a innocent wa
 into sensitive informations and stuff accounts. Using root privileges downloaded several security
 tools.
 
+![Stuff Portal](images/42lpe_stuffportal_redacted.png){: w="720"}
+
 So our plan was finding a service, that potentially exist to manage students quickly. And during the
 nmap scans and we found the jackpot! An admin portal without authorization mechanism, just hanging
 there. And this is the story of how we become the richest mans in 42 schools.
+
+![Richman Achivement](images/42lpe_richman.png){: w="720"}
 
 ## Ending
 
@@ -200,7 +206,3 @@ technologies. Not for the fix every vulnerability, but just pinpointing forgotte
 We haven't received our thropies yet, but in a month I will update this writing again, and hopefuly
 put an image here. Thanks for reading until here, and hoping that shared the similar excitement that
 I experienced during the whole process.
-
-
-
-## Post-Exploitation
