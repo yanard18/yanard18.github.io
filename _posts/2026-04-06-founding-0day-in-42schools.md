@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Founding 0day in 42 Schools"
+title:  "The 42,000 Credit Heist: Finding Zero-Day at 42 Schools"
 categories: [cyber-security]
 tags: [pentest]
 image: images/42lpe_achievements.png
@@ -10,27 +10,27 @@ image: images/42lpe_achievements.png
 
 Recently found a 0day vulnerability in 42 schools network and performed local privilege escalation.
 Then discoverd an unauthorized admin portal and become the richest man in the 42schools. So I will
-talk about: how it all started, anlaysis on the 0day, and the post exploitation phase.
+talk about: how it all started, analaysis on the 0day, and the post exploitation phase.
 
 ### Motivation
 
 In our campus we have a towel, you know that famous towel from the actual book. It can only be
-acquired by 42.000 credits. For the read who is not familiar with the 42 schools, we have our own
+acquired by 42.000 credits. For the reader who is not familiar with the 42 schools, we have our own
 shop and money system, that we can buy merchandises or extra ram to our cubicles. Towel is very
 expensive, so technically it's impossible to buy, technically... You can see why it's a perfect
-thropy for a security enthusiast.
+trophy for a security enthusiast.
 
 ![Shop](images/42lpe_shop.png){: w="480"}
 
 ## 0day
 
 Everything started with, my fellow friend sent me a screenshot of a folder, that whatever you put in
-it, it instantly downloaded to all other computers. To be honst, this piece of information not that
+it, it instantly downloaded to all other computers. To be honest, this piece of information not that
 related with the 0day, but this was the initial spark for us to dig more.
 
 Our school prefers linux for their student computers. So started with classic practice of local
 privilege escalation enumeration. During discovery `/usr/bin/pkgtool` binary with SUID bit was
-standing out. For who is familiar with standard linux binaries, it's easy to identify that this is
+standing out. Anyone familiar with standard linux binaries, it's easy to identify that this is
 not a standard binary for the system. The combination of an SUID bit on a custom binary is always a
 massive red flag—you don't need spider-sense to feel a little excited when you spot one. 
 
@@ -166,21 +166,29 @@ PYTHONPATH=/tmp /usr/bin/pkgtool
 rm /tmp/sitecustomize.py
 ```
 
-Since this is a very classic implementation I won't going into details of this, but simply we are
-doing two different operations here:
+**1. sitecustomize.py:** I fired up Emacs and wrote a quick script to drop
+our malicious Python module into /tmp, a world-writable directory. Inside the
+script, the `os.setresuid(0, 0, 0)` and `os.setresgid(0, 0, 0)` calls are critical.
+Spawned child processes can sometimes drop privileges if the Real, Effective,
+and Saved user IDs aren't perfectly aligned. These commands explicitly lock all
+IDs to 0 (root) before `os.system("/bin/sh -p")` spawns the shell.
 
-1. Creating `sitecustomize.py` script that will give root shell when executed with privileged user
-2. And setting up the environment variable for `PYTHONPATH`.
+**2. PYTHONPATH:** By executing the wrapper inline with `PYTHONPATH=/tmp`,
+we actively exploit the unsanitized environment pass-through we found in the
+strace output. The root-privileged Python interpreter is tricked into checking
+/tmp first, loading our malicious sitecustomize module instead of continuing
+its standard boot sequence.
 
-Because the C wrapper blindly passed our environment variables to the inner script, the payload
-executed with the wrapper's inherited root permissions. Running this script resulted in an immediate
-drop into an interactive root shell.
+Because the C wrapper blindly passed our environment variables to the inner
+script, the payload executed with the wrapper's inherited root permissions.
+Running this script resulted in an immediate drop into an interactive root
+shell.
 
 ## We are root... now what? Don't Panic!
 
 I know that was prety straightworfard but it is always an amazing feeling to see `#` on your
 terminal. To buy towel, we need to find a way to give us 42.000 credits. At this point we could
-search for credential reuse, kerberoasting for accessing stuff accounts, letheral movement to more
+search for credential reuse, kerberoasting for accessing stuff accounts, lateral movement to more
 privileged devices. However main challange was performing those in a innocent way, without peeking
 into sensitive informations and stuff accounts. Using root privileges downloaded several security
 tools.
@@ -189,13 +197,13 @@ tools.
 
 So our plan was finding a service, that potentially exist to manage students quickly. And during the
 nmap scans and we found the jackpot! An admin portal without authorization mechanism, just hanging
-there. And this is the story of how we become the richest mans in 42 schools.
+there. And this is the story of how we become the richest man in 42 schools.
 
 ![Richman Achivement](images/42lpe_richman.png){: w="480"}
 
 ## Ending
 
-At some points attacks were streightforward and easy. But I don't particularly think that stuff
+At some points attacks were straightforward and easy. But I don't particularly think that stuff
 members are bad at their job. In fact, I often see that most impactful vulnerabilities caused by
 very simple mistakes, especially on big enterprise networks. Humans tend to make mistakes, and
 forgot services that used before and outdated in the present day. To prevent such mistakes,
@@ -204,6 +212,6 @@ technologies. Not for the fix every vulnerability, but just pinpointing forgotte
 
 ## About the Towel
 
-We haven't received our thropies yet, but in a month I will update this writing again, and hopefuly
+We haven't received our trophies yet, but in a month I will update this writing again, and hopefuly
 put an image here. Thanks for reading until here, and hoping that shared the similar excitement that
 I experienced during the whole process.
