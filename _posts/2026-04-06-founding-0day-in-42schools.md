@@ -3,6 +3,7 @@ layout: post
 title:  "Founding 0day in 42 Schools"
 categories: [cyber-security]
 tags: [pentest]
+image: images/42lpe_richman.png
 ---
 
 ## Introduction
