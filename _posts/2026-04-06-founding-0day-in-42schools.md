@@ -3,7 +3,7 @@ layout: post
 title:  "The 42,000 Credit Heist: Finding Zero-Day at 42 Schools"
 categories: [cyber-security]
 tags: [pentest]
-image: images/42lpe_achievements.png
+image: https://mekaru-blog-public-019949df-237e-7d6d-9503-4bb35a1727dc.s3.eu-central-1.amazonaws.com/media/images/42lpe_achievements.png
 ---
 
 ## Introduction
@@ -20,7 +20,7 @@ shop and money system, that we can buy merchandises or extra ram to our cubicles
 expensive, so technically it's impossible to buy, technically... You can see why it's a perfect
 trophy for a security enthusiast.
 
-![Shop](images/42lpe_shop.png){: w="480"}
+![Shop](https://mekaru-blog-public-019949df-237e-7d6d-9503-4bb35a1727dc.s3.eu-central-1.amazonaws.com/media/images/42lpe_shop.png){: w="480"}
 
 ## 0day
 
@@ -193,13 +193,13 @@ privileged devices. However main challange was performing those in a innocent wa
 into sensitive informations and stuff accounts. Using root privileges downloaded several security
 tools.
 
-![Stuff Portal](images/42lpe_stuffportal_redacted.png){: w="480"}
+![Stuff Portal](https://mekaru-blog-public-019949df-237e-7d6d-9503-4bb35a1727dc.s3.eu-central-1.amazonaws.com/media/images/42lpe_stuffportal_redacted.png){: w="480"}
 
 So our plan was finding a service, that potentially exist to manage students quickly. And during the
 nmap scans and we found the jackpot! An admin portal without authorization mechanism, just hanging
 there. And this is the story of how we become the richest man in 42 schools.
 
-![Richman Achivement](images/42lpe_richman.png){: w="480"}
+![Richman Achivement](https://mekaru-blog-public-019949df-237e-7d6d-9503-4bb35a1727dc.s3.eu-central-1.amazonaws.com/media/images/42lpe_richman.png){: w="480"}
 
 ## Ending
 

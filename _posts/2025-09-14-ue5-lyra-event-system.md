@@ -72,7 +72,7 @@ Now the Player only handles its own state and the respawn logic is handled by wh
 
 We'll start with a classic Observer example (Unity/C#) and use it to highlight common problems and improvements.
 
-![observer-pattern-diagram-wikipedia](images/observer-pattern-uml-diagram-wikipedia.png){: w="720"}
+![observer-pattern-diagram-wikipedia](https://mekaru-blog-public-019949df-237e-7d6d-9503-4bb35a1727dc.s3.eu-central-1.amazonaws.com/media/images/observer-pattern-uml-diagram-wikipedia.png){: w="720"}
 
 Player.cs:
 
